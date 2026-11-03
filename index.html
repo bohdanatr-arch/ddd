@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Robux Spin Wheel</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts for Roblox/Arcade style -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Fredoka', 'Montserrat', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    
+    /* Sunburst Ray Animation */
+    @keyframes spin-rays {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .animate-rays {
+      animation: spin-rays 22s linear infinite;
+    }
+
+    /* Pulse Glow */
+    @keyframes glow-pulse {
+      0%, 100% { filter: drop-shadow(0 0 14px rgba(255, 215, 0, 0.7)); }
+      50% { filter: drop-shadow(0 0 28px rgba(255, 235, 59, 1)); }
+    }
+    .animate-gold-glow {
+      animation: glow-pulse 2s ease-in-out infinite;
+    }
+
+    /* Floating Coin */
+    @keyframes float-coin {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-10px) scale(1.03); }
+    }
+    .animate-float {
+      animation: float-coin 2.6s ease-in-out infinite;
+    }
+
+    /* Pointer Hourglass Marker */
+    .pointer-marker {
+      pointer-events: none;
+    }
+
+    /* Glossy Button */
+    .spin-btn {
+      background: linear-gradient(180deg, #ff1b7a 0%, #ff5233 48%, #ff9e00 100%);
+      box-shadow: 0 8px 24px rgba(255, 46, 99, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.65), inset 0 -3px 4px rgba(0, 0, 0, 0.25);
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      transition: all 0.15s ease-out;
+    }
+    .spin-btn:active {
+      transform: scale(0.96) translateY(2px);
+      box-shadow: 0 4px 12px rgba(255, 46, 99, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.4);
+    }
+    .spin-btn:disabled {
+      filter: grayscale(0.2) opacity(0.9);
+      cursor: not-allowed;
+    }
+
+    /* Custom Scrollbar Hide */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-white min-h-screen flex flex-col justify-between overflow-x-hidden text-slate-800">
+
+  <!-- Fullscreen Web Container (No Phone Mockup) -->
+  <main class="w-full min-h-screen flex flex-col justify-between relative overflow-hidden bg-white">
+
+    <!-- Top App Bar / Balance & Sound Controls -->
+    <header class="w-full max-w-6xl mx-auto pt-6 pb-4 px-6 sm:px-10 flex items-center justify-between z-20">
+      <!-- Robux Balance Badge -->
+      <div id="topBalanceBadge" class="flex items-center gap-2.5 bg-slate-50 px-4 py-2 rounded-full border border-slate-200 shadow-sm transition-all">
+        <!-- Robux Icon (Enlarged) -->
+        <img src="https://i.postimg.cc/cJBjffnd/444.png" alt="Robux" class="w-7 h-7 object-contain drop-shadow-sm scale-110" onerror="this.onerror=null;this.src='https://placehold.co/100x100/eab308/ffffff?text=R$'" />
+        <span class="text-xs uppercase tracking-wider text-slate-500 font-bold">Balance:</span>
+        <span id="headerBalance" class="text-lg font-extrabold text-slate-900">182</span>
+      </div>
+
+      <!-- Action Button (Sound Toggle) -->
+      <div class="flex items-center gap-2">
+        <button id="soundToggleBtn" title="Mute / Unmute Sound" class="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-100 transition shadow-sm active:scale-95">
+          <svg id="soundIconOn" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z"/>
+          </svg>
+          <svg id="soundIconOff" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Center Section: Title & Interactive Roulette Tape -->
+    <div class="flex-1 flex flex-col justify-center items-center w-full px-0 py-6 sm:py-10 relative">
+      
+      <!-- Headline / Subtitle -->
+      <div class="text-center px-4 mb-8 sm:mb-10 max-w-2xl mx-auto">
+        <span class="inline-block px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100 font-bold text-xs uppercase tracking-wider mb-2 shadow-sm">
+          💎 NEED MORE ROBUX?
+        </span>
+        <h1 class="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight">
+          Spin & Win Big!
+        </h1>
+        <p class="text-slate-500 font-semibold text-sm sm:text-base mt-2">
+          Unlock exclusive outfits, items, and accessories!
+        </p>
+      </div>
+
+      <!-- Roulette Reel Carousel Container (Full Width Ribbon) -->
+      <div class="w-full relative py-8 sm:py-10 flex items-center justify-center overflow-hidden bg-slate-50/80 border-y border-slate-200">
+        
+        <!-- Center Target Indicator: Blue Hourglass Brackets (Exact match from video) -->
+        <div class="pointer-marker absolute inset-y-0 left-1/2 -translate-x-1/2 w-[164px] z-30 flex flex-col justify-between items-center pointer-events-none">
+          <!-- Top Triangle / Arrow -->
+          <div class="w-0 h-0 border-l-[18px] border-l-transparent border-r-[18px] border-r-transparent border-t-[26px] border-t-[#3040d8] filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"></div>
+          
+          <!-- Middle Framing Glow Line -->
+          <div class="w-full h-full border-x-4 border-[#3040d8]/80 rounded-2xl -my-1 shadow-[0_0_16px_rgba(48,64,216,0.3)]"></div>
+          
+          <!-- Bottom Triangle / Arrow -->
+          <div class="w-0 h-0 border-l-[18px] border-l-transparent border-r-[18px] border-r-transparent border-b-[26px] border-b-[#3040d8] filter drop-shadow-[0_-2px_4px_rgba(0,0,0,0.3)]"></div>
+        </div>
+
+        <!-- Left/Right Vignette Fog for Smooth Overflow -->
+        <div class="absolute inset-y-0 left-0 w-16 sm:w-48 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
+        <div class="absolute inset-y-0 right-0 w-16 sm:w-48 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
+
+        <!-- The Spinning Tape Track -->
+        <div id="reelViewport" class="w-full overflow-hidden select-none">
+          <div id="reelTrack" class="flex gap-4 items-center will-change-transform" style="transform: translateX(0px);">
+            <!-- Cards will be injected dynamically via JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Live Speed / Spin Indicator Status -->
+      <div class="mt-6 flex items-center gap-2">
+        <span id="spinStatusText" class="text-slate-600 font-bold text-sm sm:text-base tracking-wide">
+          Tap the button below to spin!
+        </span>
+      </div>
+
+    </div>
+
+    <!-- Bottom Controls Section -->
+    <footer class="w-full pb-10 pt-4 px-6 flex flex-col items-center z-20 max-w-xl mx-auto">
+      
+      <!-- SPIN Action Button -->
+      <button id="spinBtn" class="spin-btn w-full max-w-[360px] py-4 rounded-3xl text-white font-extrabold text-2xl tracking-wider uppercase border-2 border-white/50 cursor-pointer">
+        SPIN
+      </button>
+
+      <!-- Disclaimer text (From screenshot: FOR ILLUSTRATION PURPOSES ONLY) -->
+      <div class="mt-4 text-center">
+        <p class="text-slate-400 font-bold text-[11px] sm:text-xs tracking-widest uppercase">
+          FOR ILLUSTRATION PURPOSES ONLY
+        </p>
+      </div>
+    </footer>
+
+    <!-- Reward Credit Toast Notification -->
+    <div id="creditToast" class="fixed top-8 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-bold text-sm px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 transform -translate-y-12 opacity-0 pointer-events-none transition-all duration-500 whitespace-nowrap">
+      <svg class="w-5 h-5 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+      </svg>
+      <span id="creditToastText">+10,000 Robux added to your balance!</span>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- WINNER MODAL CELEBRATION (Full Screen Overlay) -->
+    <!-- ============================================== -->
+    <div id="winModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 opacity-0 pointer-events-none transition-opacity duration-300">
+      
+      <!-- Rotating Sunburst Rays Background -->
+      <div class="absolute w-[680px] h-[680px] pointer-events-none opacity-40 animate-rays -z-10">
+        <svg viewBox="0 0 100 100" class="w-full h-full text-yellow-300 fill-current">
+          <g transform="translate(50,50)">
+            <!-- 16 Sunburst Triangular Rays -->
+            <polygon points="0,0 -8,-50 8,-50" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(22.5)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(45)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(67.5)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(90)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(112.5)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(135)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(157.5)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(180)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(202.5)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(225)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(247.5)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(270)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(292.5)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(315)" />
+            <polygon points="0,0 -8,-50 8,-50" transform="rotate(337.5)" />
+          </g>
+        </svg>
+      </div>
+
+      <!-- Win Content Card -->
+      <div class="flex flex-col items-center text-center max-w-xs transform scale-95 transition-transform duration-300" id="winCardContent">
+        
+        <!-- YOU WIN Header with Gold Glow -->
+        <h2 class="text-4xl sm:text-5xl font-black text-amber-300 tracking-wider uppercase drop-shadow-[0_4px_16px_rgba(250,204,21,0.8)] mb-2 animate-bounce">
+          YOU WIN!
+        </h2>
+
+        <!-- Giant 3D Robux Coin Icon -->
+        <div class="relative w-56 h-56 sm:w-64 sm:h-64 my-2 animate-float animate-gold-glow flex items-center justify-center">
+          <img src="https://i.postimg.cc/cJBjffnd/444.png" alt="Robux Reward" class="w-full h-full object-contain scale-110 filter drop-shadow-[0_12px_32px_rgba(202,138,4,0.85)]" onerror="this.onerror=null;this.src='https://placehold.co/200x200/eab308/ffffff?text=10000+R$'" />
+        </div>
+
+        <!-- Won Amount -->
+        <div id="winPrizeAmount" class="text-3xl sm:text-4xl font-black text-white tracking-wide drop-shadow-md">
+          10,000 Robux
+        </div>
+
+        <!-- Subtitle: Sent to Roblox account -->
+        <p class="text-slate-300 font-semibold text-sm mt-1 mb-6">
+          Sent to your Roblox account
+        </p>
+
+        <!-- Claim & Dismiss Button (OK) -->
+        <button id="claimPrizeBtn" class="spin-btn w-full py-4 px-8 rounded-full text-white font-extrabold text-2xl uppercase tracking-wider shadow-xl active:scale-95 transition-all">
+          OK
+        </button>
+
+        <p class="text-white/60 text-[10px] uppercase font-bold tracking-widest mt-6">
+          FOR ILLUSTRATION PURPOSES ONLY
+        </p>
+      </div>
+
+      <!-- Particle Confetti Canvas -->
+      <canvas id="confettiCanvas" class="absolute inset-0 pointer-events-none z-10"></canvas>
+    </div>
+
+  </main>
+
+  <!-- ============================================== -->
+  <!-- AUDIO & GAME LOGIC ENGINE                      -->
+  <!-- ============================================== -->
+  <script>
+    // --- Web Audio API Synth Sound System (No external audio file dependencies) ---
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playTick(speedMultiplier = 1) {
+        if (this.muted || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.type = 'triangle';
+          // Pitch shifts slightly based on reel movement speed
+          osc.frequency.setValueAtTime(480 + (speedMultiplier * 120), this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.04);
+
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.04);
+        } catch (e) {
+          // ignore audio restriction errors
+        }
+      }
+
+      playWinFanfare() {
+        if (this.muted || !this.ctx) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+        notes.forEach((freq, idx) => {
+          setTimeout(() => {
+            if (!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.28, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.5);
+          }, idx * 110);
+        });
+      }
+
+      playCoinDing() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(987.77, this.ctx.currentTime); // B5
+          osc.frequency.exponentialRampToValueAtTime(1318.51, this.ctx.currentTime + 0.12); // E6
+          gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.2);
+        } catch (e) {}
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // --- State Variables ---
+    let currentBalance = 182;
+    let isSpinning = false;
+    let spinCount = 0;
+    let lastWonAmount = 10000;
+
+    // Available Prize Definitions matching video screenshots
+    const PRIZES = [
+      { amount: 100, label: '100' },
+      { amount: 500, label: '500' },
+      { amount: 1000, label: '1,000' },
+      { amount: 200, label: '200' },
+      { amount: 3000, label: '3,000' },
+      { amount: 20, label: '20' },
+      { amount: 4000, label: '4,000' },
+      { amount: 10000, label: '10,000', jackpot: true },
+      { amount: 25, label: '25' },
+      { amount: 5000, label: '5,000' },
+      { amount: 10, label: '10' }
+    ];
+
+    // Card width + Gap
+    const CARD_WIDTH = 144; // w-36 = 9rem = 144px
+    const CARD_GAP = 16;    // gap-4 = 1rem = 16px
+    const ITEM_FULL_WIDTH = CARD_WIDTH + CARD_GAP; // 160px
+
+    const reelTrack = document.getElementById('reelTrack');
+    const reelViewport = document.getElementById('reelViewport');
+    const spinBtn = document.getElementById('spinBtn');
+    const spinStatusText = document.getElementById('spinStatusText');
+    const winModal = document.getElementById('winModal');
+    const winCardContent = document.getElementById('winCardContent');
+    const winPrizeAmount = document.getElementById('winPrizeAmount');
+    const claimPrizeBtn = document.getElementById('claimPrizeBtn');
+    const headerBalance = document.getElementById('headerBalance');
+    const creditToast = document.getElementById('creditToast');
+    const creditToastText = document.getElementById('creditToastText');
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const soundIconOn = document.getElementById('soundIconOn');
+    const soundIconOff = document.getElementById('soundIconOff');
+
+    // Generate Card DOM Elements (Repeated strip of 70 cards for seamless long spin)
+    let cardList = [];
+    const TOTAL_CARDS = 80;
+
+    function buildReelCards() {
+      reelTrack.innerHTML = '';
+      cardList = [];
+
+      for (let i = 0; i < TOTAL_CARDS; i++) {
+        const prizeData = PRIZES[i % PRIZES.length];
+        cardList.push(prizeData);
+
+        const card = document.createElement('div');
+        card.className = `w-36 h-50 rounded-2xl flex-shrink-0 flex flex-col items-center justify-between p-3 border-2 border-white/60 shadow-lg select-none relative overflow-hidden transition-transform duration-200`;
+        card.style.background = 'linear-gradient(180deg, #9bb5ff 0%, #839eff 100%)';
+        
+        card.innerHTML = `
+          <!-- Top subtle sheen -->
+          <div class="absolute inset-x-0 top-0 h-10 bg-white/20 rounded-t-2xl pointer-events-none"></div>
+          
+          <!-- Golden Hexagon Robux Coin Image -->
+          <div class="w-24 h-24 my-auto relative flex items-center justify-center">
+            <img src="https://i.postimg.cc/cJBjffnd/444.png" alt="Robux" class="w-full h-full object-contain scale-125 filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.35)] select-none pointer-events-none" draggable="false" onerror="this.onerror=null;this.src='https://placehold.co/100x100/eab308/ffffff?text=R$'" />
+          </div>
+
+          <!-- Robux Prize Label -->
+          <div class="text-white font-black text-2xl tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)]">
+            ${prizeData.label}
+          </div>
+        `;
+
+        reelTrack.appendChild(card);
+      }
+    }
+
+    buildReelCards();
+
+    // Center reel track on start
+    let currentReelX = 0;
+    function centerReelOnCard(index) {
+      const viewportWidth = reelViewport.offsetWidth;
+      const targetX = (viewportWidth / 2) - (index * ITEM_FULL_WIDTH) - (CARD_WIDTH / 2);
+      currentReelX = targetX;
+      reelTrack.style.transition = 'none';
+      reelTrack.style.transform = `translateX(${targetX}px)`;
+    }
+
+    // Initialize with card index 2 centered
+    window.addEventListener('load', () => {
+      centerReelOnCard(2);
+    });
+    window.addEventListener('resize', () => {
+      if (!isSpinning) {
+        centerReelOnCard(spinCount === 0 ? 2 : lastTargetIndex);
+      }
+    });
+
+    // --- Spin Mechanics ---
+    let lastTargetIndex = 2;
+
+    function startSpin() {
+      if (isSpinning) return;
+      sound.init();
+
+      isSpinning = true;
+      spinCount++;
+      spinBtn.disabled = true;
+      spinBtn.innerText = 'SPINNING...';
+      spinBtn.classList.add('animate-pulse');
+      spinStatusText.innerText = 'Selecting your reward...';
+
+      let targetIndex;
+      if (spinCount === 1) {
+        targetIndex = cardList.findIndex((item, idx) => idx > 40 && item.amount === 10000);
+        if (targetIndex === -1) targetIndex = 48;
+      } else {
+        targetIndex = Math.floor(Math.random() * 16) + 42;
+      }
+
+      lastTargetIndex = targetIndex;
+      const wonPrize = cardList[targetIndex];
+      lastWonAmount = wonPrize.amount;
+
+      const viewportWidth = reelViewport.offsetWidth;
+      const destinationX = (viewportWidth / 2) - (targetIndex * ITEM_FULL_WIDTH) - (CARD_WIDTH / 2);
+
+      const duration = 4800;
+      const startTime = performance.now();
+      const startX = currentReelX;
+      const totalDistance = destinationX - startX;
+
+      let lastPassedCard = Math.floor((-startX + (viewportWidth / 2)) / ITEM_FULL_WIDTH);
+
+      function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3.8);
+      }
+
+      function animateReel(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease = easeOutCubic(progress);
+
+        currentReelX = startX + (totalDistance * ease);
+        reelTrack.style.transform = `translateX(${currentReelX}px)`;
+
+        const centerPos = -currentReelX + (viewportWidth / 2);
+        const currentPassingCard = Math.floor(centerPos / ITEM_FULL_WIDTH);
+        if (currentPassingCard !== lastPassedCard) {
+          lastPassedCard = currentPassingCard;
+          const speedFactor = 1 - progress;
+          sound.playTick(speedFactor);
+        }
+
+        if (progress < 1) {
+          requestAnimationFrame(animateReel);
+        } else {
+          currentReelX = destinationX;
+          reelTrack.style.transform = `translateX(${currentReelX}px)`;
+          onSpinCompleted(wonPrize);
+        }
+      }
+
+      requestAnimationFrame(animateReel);
+    }
+
+    function onSpinCompleted(prize) {
+      isSpinning = false;
+      spinBtn.disabled = false;
+      spinBtn.innerText = 'SPIN AGAIN';
+      spinBtn.classList.remove('animate-pulse');
+      spinStatusText.innerText = `Won: ${prize.label} Robux! 🎉`;
+
+      sound.playWinFanfare();
+
+      setTimeout(() => {
+        showWinModal(prize);
+      }, 400);
+    }
+
+    // --- Win Modal & Confetti ---
+    let confettiAnimationId = null;
+
+    function showWinModal(prize) {
+      winPrizeAmount.innerText = `${prize.label} Robux`;
+      winModal.classList.remove('opacity-0', 'pointer-events-none');
+      winCardContent.classList.remove('scale-95');
+      winCardContent.classList.add('scale-100');
+
+      startConfetti();
+    }
+
+    function hideWinModal() {
+      winModal.classList.add('opacity-0', 'pointer-events-none');
+      winCardContent.classList.remove('scale-100');
+      winCardContent.classList.add('scale-95');
+      stopConfetti();
+    }
+
+    // Confetti System
+    const canvas = document.getElementById('confettiCanvas');
+    const ctx = canvas.getContext('2d');
+    let confettiParticles = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    function startConfetti() {
+      resizeCanvas();
+      confettiParticles = [];
+      const colors = ['#facc15', '#38bdf8', '#fb7185', '#4ade80', '#c084fc', '#ffffff'];
+
+      for (let i = 0; i < 90; i++) {
+        confettiParticles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height - canvas.height,
+          size: Math.random() * 8 + 5,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          vx: (Math.random() - 0.5) * 4,
+          vy: Math.random() * 4 + 3,
+          rot: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 8,
+          isStar: Math.random() > 0.5
+        });
+      }
+
+      function loop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        confettiParticles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rot += p.rotSpeed;
+
+          if (p.y > canvas.height) {
+            p.y = -20;
+            p.x = Math.random() * canvas.width;
+          }
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rot * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+
+          if (p.isStar) {
+            ctx.beginPath();
+            ctx.moveTo(0, -p.size);
+            ctx.lineTo(p.size, 0);
+            ctx.lineTo(0, p.size);
+            ctx.lineTo(-p.size, 0);
+            ctx.closePath();
+            ctx.fill();
+          } else {
+            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+          }
+          ctx.restore();
+        });
+
+        confettiAnimationId = requestAnimationFrame(loop);
+      }
+      loop();
+    }
+
+    function stopConfetti() {
+      if (confettiAnimationId) {
+        cancelAnimationFrame(confettiAnimationId);
+        confettiAnimationId = null;
+      }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // --- Direct Robux Balance Addition Animation ---
+    function addRobuxToBalance(amount) {
+      const startVal = currentBalance;
+      const targetVal = currentBalance + amount;
+      currentBalance = targetVal;
+
+      creditToastText.innerText = `+${amount.toLocaleString()} Robux added to your balance!`;
+      creditToast.classList.remove('-translate-y-12', 'opacity-0');
+      creditToast.classList.add('translate-y-0', 'opacity-100');
+      sound.playCoinDing();
+
+      setTimeout(() => {
+        creditToast.classList.add('-translate-y-12', 'opacity-0');
+        creditToast.classList.remove('translate-y-0', 'opacity-100');
+      }, 3500);
+
+      const duration = 1800;
+      const startTimestamp = performance.now();
+
+      function step(now) {
+        const elapsed = now - startTimestamp;
+        const progress = Math.min(elapsed / duration, 1);
+        const currentCount = Math.floor(startVal + (targetVal - startVal) * (1 - Math.pow(1 - progress, 3)));
+        headerBalance.innerText = currentCount.toLocaleString();
+
+        if (progress < 1) {
+          if (Math.random() > 0.6) sound.playTick(1.4);
+          requestAnimationFrame(step);
+        } else {
+          headerBalance.innerText = targetVal.toLocaleString();
+          sound.playCoinDing();
+        }
+      }
+
+      requestAnimationFrame(step);
+    }
+
+    // --- Event Listeners ---
+    spinBtn.addEventListener('click', startSpin);
+
+    // Clicking "OK" closes modal and directly awards the Robux into the balance
+    claimPrizeBtn.addEventListener('click', () => {
+      hideWinModal();
+      addRobuxToBalance(lastWonAmount);
+      spinStatusText.innerText = 'Robux credited! Tap to spin again!';
+    });
+
+    // Sound Mute Toggle
+    soundToggleBtn.addEventListener('click', () => {
+      sound.init();
+      sound.muted = !sound.muted;
+      if (sound.muted) {
+        soundIconOn.classList.add('hidden');
+        soundIconOff.classList.remove('hidden');
+      } else {
+        soundIconOn.classList.remove('hidden');
+        soundIconOff.classList.add('hidden');
+        sound.playTick(1);
+      }
+    });
+
+    reelTrack.addEventListener('touchmove', (e) => {
+      if (isSpinning) e.preventDefault();
+    }, { passive: false });
+  </script>
+</body>
+</html>
